@@ -1,49 +1,26 @@
-#!/usr/bin/env python3
-"""Publish this repo's office joke for the 24-hour one-line sprint.
+"""One-line office joke entry for the 24-hour sprint.
 
-Loads entry.txt, flattens it to a single spoken line, checks the
-1..200-character gate, and drops it into $MAKEFUN_OUTPUT_DIR/entry.txt
-for the judge to score against the other office jests.
+Saves the joke below into the output folder named by MAKEFUN_OUTPUT_DIR
+(default "output"), reloads it, and checks the stored text equals the
+joke before printing a one-line JSON report. Standard library only.
 """
 import json
 import os
-import pathlib
-import sys
+from pathlib import Path
 
-GATE_MAX = 200
-BOUNTY = "u-pucuys-one-line-office-joke-24-hour-sprint-aaf86162"
-
-
-def flatten(raw):
-    """Return the first non-blank line, without CR or edge whitespace."""
-    for candidate in raw.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        stripped = candidate.strip()
-        if stripped:
-            return stripped
-    return ""
+JOKE = "会议本该是一封邮件，所以我们开了个会，讨论哪些会可以变成邮件，结论是下次开会再议。"
+SPRINT = "u-pucuys-one-line-office-joke-24-hour-sprint-aaf86162"
 
 
-def main():
-    here = pathlib.Path(__file__).resolve().parent
-    source = here / "entry.txt"
-    if not source.is_file():
-        print(json.dumps({"verdict": "reject", "bounty": BOUNTY,
-                          "why": "no entry.txt beside main.py"}))
-        return 2
-    line = flatten(source.read_text(encoding="utf-8"))
-    size = len(line)
-    if not 1 <= size <= GATE_MAX:
-        print(json.dumps({"verdict": "reject", "bounty": BOUNTY,
-                          "why": f"joke is {size} chars, gate allows 1..{GATE_MAX}"}))
-        return 2
-    out_root = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    out = pathlib.Path(out_root)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "entry.txt").write_text(line + "\n", encoding="utf-8", newline="\n")
-    print(json.dumps({"verdict": "accept", "bounty": BOUNTY,
-                      "chars": size, "cap": GATE_MAX}))
-    return 0
+def stamp():
+    folder = Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "output")
+    folder.mkdir(parents=True, exist_ok=True)
+    page = folder / "entry.txt"
+    page.write_text(JOKE, encoding="utf-8")
+    assert page.read_text(encoding="utf-8") == JOKE
+    return page
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    target = stamp()
+    print(json.dumps({"wrote": target.name, "chars": len(JOKE), "sprint": SPRINT}))
