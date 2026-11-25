@@ -1,26 +1,45 @@
-"""One-line office joke entry for the 24-hour sprint.
+"""Gate runner for the office-joke sprint entry.
 
-Saves the joke below into the output folder named by MAKEFUN_OUTPUT_DIR
-(default "output"), reloads it, and checks the stored text equals the
-joke before printing a one-line JSON report. Standard library only.
+Pulls the one-line submission beside this file, cleans it down to a
+single non-blank line, holds it against the 200 character ceiling,
+then plants the exact bytes in the grader's output folder and prints
+a one-line verdict.
 """
+from pathlib import Path
 import json
 import os
-from pathlib import Path
 
-JOKE = "会议本该是一封邮件，所以我们开了个会，讨论哪些会可以变成邮件，结论是下次开会再议。"
-SPRINT = "u-pucuys-one-line-office-joke-24-hour-sprint-aaf86162"
+LIMIT = 200
+TAG = "ofc3-office-sprint-0822"
+SUBMISSION = Path(__file__).resolve().parent / "entry.txt"
 
 
-def stamp():
-    folder = Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "output")
-    folder.mkdir(parents=True, exist_ok=True)
-    page = folder / "entry.txt"
-    page.write_text(JOKE, encoding="utf-8")
-    assert page.read_text(encoding="utf-8") == JOKE
-    return page
+def sweep(raw):
+    body = raw.replace("\r", "").rstrip("\n")
+    if "\n" in body:
+        body = next(x for x in body.split("\n") if x.strip())
+    return body
+
+
+def main():
+    text = sweep(SUBMISSION.read_text(encoding="utf-8"))
+    if text.strip() == "":
+        raise ValueError("submission holds only white space")
+    if len(text) > LIMIT:
+        raise ValueError("submission spans %d chars over the %d cap" % (len(text), LIMIT))
+    if "MAKEFUN_OUTPUT_DIR" in os.environ:
+        base = Path(os.environ["MAKEFUN_OUTPUT_DIR"])
+    else:
+        base = Path("output")
+    base.mkdir(parents=True, exist_ok=True)
+    dest = base / "entry.txt"
+    with open(dest, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
+    if dest.read_text(encoding="utf-8") != text:
+        raise ValueError("written file disagrees with cleaned line")
+    print(json.dumps({"pass": True, "chars": len(text), "limit": LIMIT, "tag": TAG}))
+    return 0
 
 
 if __name__ == "__main__":
-    target = stamp()
-    print(json.dumps({"wrote": target.name, "chars": len(JOKE), "sprint": SPRINT}))
+    raise SystemExit(main())
